@@ -1,14 +1,18 @@
 ---
 - name: "create systemd config for cluster"
   shell: >
-    su -c 'PATH="$PATH:{{ postgresql_cluster_bin_path }}" pg_autoctl -q show systemd --pgdata "{{ postgresql_cluster_data_dir }}"' postgres \
-    | tee /etc/systemd/system/{{ postgresql_cluster_daemon }}.service
+    sudo -u postgres pg_autoctl -q show systemd --pgdata "{{ postgresql_cluster_data_dir }}" | tee /etc/systemd/system/{{ postgresql_cluster_daemon }}.service
   when: not (postgresql_cluster_is_monitor | default('False') | bool)
+  environment:
+    PATH: "{{ postgresql_cluster_bin_path }}:{{ ansible_env.PATH }}"
+  args:
+    creates: "/etc/systemd/system/{{ postgresql_cluster_daemon }}.service"
 
 - name: "make sure database cluster service is started and enabled at boot"
   systemd:
     state: started
     enabled: true
+    masked: false
     daemon_reload: yes
     name: "{{ postgresql_cluster_daemon }}"
   when: not (postgresql_cluster_is_monitor | default('False') | bool)

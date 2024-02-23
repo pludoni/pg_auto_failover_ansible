@@ -1,4 +1,3 @@
-
 ---
 
 - name: Check if PostgreSQL database is initialized at target location
@@ -8,11 +7,22 @@
 
 - name: check if pg_autoctl already knows about this postgres cluster
   stat:
-    path: "/home/postgres/.local/share/pg_autoctl/{{ postgresql_cluster_data_dir }}"
+    path: "/home/postgres/.local/share/pg_autoctl{{ postgresql_cluster_data_dir }}/pg_autoctl.state"
   register: pg_autoctl_dir
 
 - include_tasks: register_node.yml
   when: (not pg_autoctl_dir.stat.exists) and (not pgdata_dir_version.stat.exists) and not (postgresql_cluster_is_monitor | default('False') | bool)
+
+- debug:
+    msg:
+      - 'postgresql_cluster_data_dir: "{{ postgresql_cluster_data_dir }}"'
+      - 'pg_autoctl_dir.exists: {{ pg_autoctl_dir.stat.exists }}"'
+      - 'pg_autoctl_dir.path: "{{ pg_autoctl_dir | to_nice_json }}"'
+      - 'pgdata_dir_version.exists: "{{ pgdata_dir_version.stat.exists }}"'
+      - "postgresql_cluster_is_monitor: {{ postgresql_cluster_is_monitor | default('False') | bool }}"
+      - 'first_monitor_node: "{{ postgresql_cluster_monitor_node_ips | first }}"'
+      - 'postgresql_monitor_node_ips: "{{ postgresql_cluster_monitor_node_ips }}"'
+
 
 - name: Check if PostgreSQL database is initialized now at target location
   stat:
@@ -21,8 +31,9 @@
 
 - name: check if pg_autoctl now knows about this postgres cluster
   stat:
-    path: "/home/postgres/.local/share/pg_autoctl/{{ postgresql_cluster_data_dir }}"
+    path: "/home/postgres/.local/share/pg_autoctl{{ postgresql_cluster_data_dir }}"
   register: pg_autoctl_dir
+
 
 - fail:
     msg: "EMERG: could not reliably determine if pg_autoctl already knows about this cluster even after running the setup!"
@@ -33,5 +44,15 @@
     path: "/etc/systemd/system/{{ postgresql_cluster_daemon }}.service"
   register: postgresql_cluster_daemon_service_file
 
+
+- debug:
+    msg:
+      - "pg_auto_ctl_dir: {{ pg_autoctl_dir.stat.exists }}"
+      - "pgdata_dir_version: {{ pgdata_dir_version.stat.exists }}"
+      - "postgresql_cluster_daemon_service_file: {{ postgresql_cluster_daemon_service_file.stat.exists }}"
+      - "postgresql_cluster_is_monitor: {{ postgresql_cluster_is_monitor | default('False') | bool }}"
+      - "bool: {{ (pg_autoctl_dir.stat.exists) and (pgdata_dir_version.stat.exists) and (not postgresql_cluster_daemon_service_file.stat.exists) and not (postgresql_cluster_is_monitor | default('False') | bool) }}"
+
 - include_tasks: setup_service.yml
+  name: "include setup_service.yml"
   when: (pg_autoctl_dir.stat.exists) and (pgdata_dir_version.stat.exists) and (not postgresql_cluster_daemon_service_file.stat.exists) and not (postgresql_cluster_is_monitor | default('False') | bool)

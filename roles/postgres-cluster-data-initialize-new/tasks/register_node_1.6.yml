@@ -17,10 +17,14 @@
   async: "{{ postgresql_cluster_new_node_creation_timeout | default(18000) | int }}"
   # poll every 10 seconds to see if we are finished
   poll: 10
+  become: true
+  become_user: "{{ postgresql_cluster_user }}"
+  environment:
+    PATH: "{{ postgresql_cluster_bin_path }}:{{ ansible_env.PATH }}"
   vars:
     first_monitor_node: "{{ postgresql_cluster_monitor_node_ips | first }}"
   shell: >
-    PATH="$PATH:{{ postgresql_cluster_bin_path }}" pg_autoctl create postgres \
+    pg_autoctl create postgres \
     --pgdata "{{ postgresql_cluster_data_dir }}" \
     --skip-pg-hba \
     --formation {{ postgresql_cluster_formation | default('default') }} \
@@ -30,5 +34,5 @@
     --name "{{ host_ip }}" \
     --hostname "{{ host_ip }}" \
     --pgport "{{ postgresql_cluster_port | default('5433') }}" \
-    --monitor postgres://autoctl_node@{{ first_monitor_node }}:{{ postgresql_cluster_port | default('5433') }}/pg_auto_failover
+    --monitor postgres://autoctl_node@{{ first_monitor_node }}:{{ postgresql_cluster_port | default('5433') }}/pg_auto_failover >> /tmp/pg_autoctl_create_postgres.log
   when: not (postgresql_cluster_is_monitor | default('False') | bool)
